@@ -143,7 +143,31 @@
         var statusEl = document.getElementById('status');
         var trackEl = document.querySelector('.track');
         var attempts = 0;
-        var MAX_ATTEMPTS = 3;
+        // Cold boot can be slow: copying the Cobalt content and minting the
+        // proxy CA key take a while on a 2018 TV, so give the service up to
+        // ~2 minutes instead of failing after a few seconds.
+        var MAX_ATTEMPTS = 60;
+        var RETRY_MS = 2000;
+
+        try {
+            document.getElementById('version').textContent = 'v' + tizen.application.getCurrentApplication().appInfo.version;
+        } catch (e) { }
+
+        function exitApp() {
+            try {
+                tizen.application.getCurrentApplication().exit();
+            } catch (e) {
+                try { history.back(); } catch (e2) { }
+            }
+        }
+
+        // Back must always leave, including on the error screen.
+        document.addEventListener('tizenhwkey', function (e) {
+            if (e.keyName === 'back') exitApp();
+        });
+        document.addEventListener('keydown', function (e) {
+            if (e.keyCode === 10009 || e.keyCode === 461 || e.keyCode === 27) exitApp();
+        });
 
         try {
             document.getElementById('version').textContent = 'v' + tizen.application.getCurrentApplication().appInfo.version;
@@ -204,7 +228,7 @@
             setStatus('Waiting for the service\u2026 (' + attempts + '/' + MAX_ATTEMPTS + ')');
             setTimeout(function () {
                 boot(args);
-            }, 1500);
+            }, RETRY_MS);
         }
 
         function boot(args) {
