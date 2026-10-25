@@ -266,7 +266,14 @@
             serviceId,
             useInjectorOrProxy,
             function (e) {
-                showError('The service did not start' + (e && e.message ? ': ' + e.message : '') + '.');
+                // An update without a reboot can leave the service answering
+                // while the launch request itself is refused, so check whether
+                // it is actually up before giving up.
+                fetch('http://localhost:8100/tizentube/getState')
+                    .then(useInjectorOrProxy)
+                    .catch(function () {
+                        showError('The service did not start' + (e && e.message ? ': ' + e.message : '') + '.');
+                    });
             });
     </script>
 </body>
