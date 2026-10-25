@@ -11,6 +11,7 @@ const startServer = require('./utils/cobaltProxyServer.js');
 const URL = require('url');
 const path = require('path');
 const injector = require('./utils/injector.js');
+const userscript = require('./userscript.js');
 
 app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -20,6 +21,15 @@ app.use((req, res, next) => {
         return res.status(200).end();
     }
     next();
+});
+
+// The userscript built in mods/ and packaged with this app: served over the local proxy, so nothing
+// is fetched from a CDN and a page load never waits on jsDelivr.
+app.get('/tizentube/userscript.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.setHeader('X-TizenTube-Version', userscript.version);
+    res.send(userscript.code);
 });
 
 app.get('/tizentube/getState', (req, res) => {
@@ -139,8 +149,8 @@ app.all('*', (req, res) => {
 
                 return response.text().then((text) => {
                     if (req.url.indexOf('/tv') === 0 && req.url.indexOf('/tv_config') === -1) {
-                        // Insert the userscript for TizenTube
-                        text += `<script src="https://cdn.jsdelivr.net/npm/@foxreis/tizentube/dist/userScript.js?ver=${Date.now()}"></script>`;
+                        // Insert the userscript for TizenTube (bundled with this app, not from a CDN)
+                        text += `<script src="http://localhost:${PORT}/tizentube/userscript.js"></script>`;
                     }
 
                     const proxyPrefix = `http://localhost:${PORT}/cors-bypass/`;

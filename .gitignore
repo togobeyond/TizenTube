@@ -3,4 +3,7 @@ node_modules/
 *.wgt
 dist/
 .sign
+standalone/service/userscript.js
+standalone/release/
 package-lock.json
+standalone/config.xml.bak

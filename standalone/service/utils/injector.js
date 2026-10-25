@@ -3,6 +3,7 @@
 const adbhost = require('adbhost');
 const CDP = require('chrome-remote-interface');
 const fetch = require('node-fetch');
+const userscript = require('../userscript.js');
 
 
 var isConnecting = false;
@@ -16,11 +17,7 @@ function connectToDebugger(host, port, args) {
             client.Page.enable();
 
             client.on('Runtime.executionContextCreated', m => {
-                fetch('https://cdn.jsdelivr.net/npm/@foxreis/tizentube/dist/userScript.js').then(res => res.text()).then(modFile => {
-                    client.Runtime.evaluate({ expression: modFile, contextId: m.context.id });
-                }).catch(e => {
-                    client.Runtime.evaluate({ expression: 'alert("Failed to request to JSDelivr CDN.")', contextId: m.context.id });
-                });
+                client.Runtime.evaluate({ expression: userscript.code, contextId: m.context.id });
             });
 
             client.Page.navigate({ url: `https://youtube.com/tv?additionalDataUrl=http%3A%2F%2Flocalhost%3A8085%2Fdial%2Fapps%2FYouTube${args ? `&${args}` : ''}` });

@@ -132,9 +132,9 @@ function startServer() {
                             "default-src * data: blob: 'unsafe-inline' 'unsafe-eval'",
                             'img-src * https://dearrow-thumb.ajay.app data: blob:',
                             'media-src * data: blob:',
-                            "script-src * https://cdn.jsdelivr.net https://sponsor.ajay.app data: blob: 'unsafe-inline' 'unsafe-eval'",
+                            "script-src * http://localhost:8100 https://sponsor.ajay.app data: blob: 'unsafe-inline' 'unsafe-eval'",
                             "style-src * data: blob: 'unsafe-inline'",
-                            'connect-src * https://cdn.jsdelivr.net https://sponsor.ajay.app https://dearrow-thumb.ajay.app',
+                            'connect-src * http://localhost:8100 https://sponsor.ajay.app https://dearrow-thumb.ajay.app',
                             'font-src * data:'
                         ].join('; ');
 
@@ -155,7 +155,7 @@ function startServer() {
                                 ''
                             );
 
-                            body = body.replace('</body>', `<script src="https://cdn.jsdelivr.net/npm/@foxreis/tizentube/dist/userScript.js?ver=${Date.now()}"></script></body>`);
+                            body = body.replace('</body>', `<script src="http://localhost:8100/tizentube/userscript.js"></script></body>`);
 
                             headers['content-length'] = Buffer.byteLength(body, 'utf8');
                             headers['connection'] = 'close';

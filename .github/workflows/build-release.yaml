@@ -45,6 +45,12 @@ jobs:
           npm install
           npx rollup -c rollup.config.js
 
+      - name: Install modules and build the userscript
+        working-directory: mods
+        run: |
+          npm install
+          npm run build
+
       - name: Install modules, transpile service and build service
         working-directory: standalone/service
         run: |
