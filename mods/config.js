@@ -20,7 +20,7 @@ const defaultConfig = {
   focusContainerColor: '#0f0f0f',
   routeColor: '#0f0f0f',
   enableFixedUI: (window.h5vcc) ? false : true,
-  enableHqThumbnails: false,
+  enableHqThumbnails: true,
   enableChapters: true,
   enableLongPress: true,
   enableShorts: true,
@@ -81,6 +81,17 @@ try {
   console.warn('Config read failed:', err);
   localConfig = defaultConfig;
 }
+
+// 2.1.5: HQ thumbnails are on by default now. Installs from before stored
+// the old default (false) without anyone choosing it, so flip it once;
+// the Settings toggle still opts out afterwards.
+try {
+  if (!localConfig.hqThumbnailsMigrated) {
+    localConfig.enableHqThumbnails = true;
+    localConfig.hqThumbnailsMigrated = true;
+    window.localStorage[CONFIG_KEY] = JSON.stringify(localConfig);
+  }
+} catch (err) {}
 
 export function configRead(key) {
   if (localConfig[key] === undefined) {
