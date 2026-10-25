@@ -1,51 +1,172 @@
 <!DOCTYPE html>
+<html lang="en">
 
 <head>
+    <meta charset="utf-8">
+    <title>TizenTube</title>
     <style>
-        @keyframes indeterminate-bar {
-            0% {
-                left: 0%;
-                width: 0;
-            }
-
-            50% {
-                left: 0%;
-                width: 100%;
-            }
-
-            100% {
-                left: 100%;
-                width: 0;
-            }
+        * {
+            box-sizing: border-box;
         }
 
-        .progress-container {
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            background: #0b0b0e;
+        }
+
+        body {
             position: relative;
-            width: 300px;
-            height: 4px;
-            margin-top: 40px;
-            background-color: rgba(25, 118, 210, 0.3);
-            border-radius: 2px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             overflow: hidden;
+            color: #f5f5f7;
+            font-family: "Samsung One UI", "SamsungOneUI", Roboto, "Noto Sans", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
 
-        .progress-bar {
+        /* Light from the app's own mark: two soft pools, no image, no blur filter. */
+        .glow {
+            position: absolute;
+            top: -25%;
+            left: -25%;
+            width: 150%;
+            height: 150%;
+            pointer-events: none;
+            background:
+                radial-gradient(34% 38% at 50% 46%, rgba(41, 200, 245, 0.16), rgba(41, 200, 245, 0) 72%),
+                radial-gradient(26% 26% at 61% 60%, rgba(94, 47, 124, 0.22), rgba(94, 47, 124, 0) 72%);
+        }
+
+        .stage {
+            position: relative;
+            width: 70vw;
+            text-align: center;
+        }
+
+        .mark {
+            display: block;
+            width: 9vh;
+            height: 9vh;
+            margin: 0 auto 4vh;
+            border-radius: 2.2vh;
+            box-shadow: 0 2vh 6vh rgba(0, 0, 0, 0.55);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 7vh;
+            font-weight: 600;
+            letter-spacing: -0.025em;
+            line-height: 1.05;
+        }
+
+        .tagline {
+            margin: 1.6vh 0 0;
+            font-size: 2vh;
+            font-weight: 400;
+            letter-spacing: 0.01em;
+            color: rgba(245, 245, 247, 0.55);
+        }
+
+        .track {
+            position: relative;
+            width: 14vw;
+            height: 0.25vh;
+            margin: 5vh auto 0;
+            overflow: hidden;
+            border-radius: 1vh;
+            background: rgba(255, 255, 255, 0.14);
+        }
+
+        .bar {
             position: absolute;
             top: 0;
             left: 0;
+            width: 38%;
             height: 100%;
-            background-color: #1976D2;
-            animation: indeterminate-bar 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            border-radius: 1vh;
+            background: linear-gradient(90deg, #29c8f5, #7b5cff);
+            transform: translate3d(-110%, 0, 0);
+            animation: slide 1.5s cubic-bezier(0.65, 0.05, 0.36, 1) infinite;
+            will-change: transform;
+        }
+
+        @keyframes slide {
+            from {
+                transform: translate3d(-110%, 0, 0);
+            }
+
+            to {
+                transform: translate3d(360%, 0, 0);
+            }
+        }
+
+        .status {
+            margin: 2.4vh 0 0;
+            min-height: 1.4em;
+            font-size: 1.7vh;
+            color: rgba(245, 245, 247, 0.6);
+        }
+
+        .status.error {
+            color: #ff9b9b;
+        }
+
+        .version {
+            position: absolute;
+            right: 4vh;
+            bottom: 4vh;
+            font-size: 1.4vh;
+            letter-spacing: 0.06em;
+            color: rgba(245, 245, 247, 0.3);
         }
     </style>
+</head>
+
+<body>
+    <div class="glow"></div>
+    <div class="stage">
+        <img class="mark" src="icon.png" alt="">
+        <h1>TizenTube</h1>
+        <p class="tagline">YouTube, without the ads</p>
+        <div class="track" role="progressbar" aria-label="Loading"><div class="bar"></div></div>
+        <p class="status" id="status">Starting&hellip;</p>
+    </div>
+    <div class="version" id="version"></div>
+
     <script>
         "use strict";
-        tizen.tvinputdevice.registerKey("ColorF0Red");
-        tizen.tvinputdevice.registerKey("ColorF1Green");
-        tizen.tvinputdevice.registerKey("ColorF2Yellow");
-        tizen.tvinputdevice.registerKey("ColorF3Blue");
 
-        const keys = [
+        var statusEl = document.getElementById('status');
+        var trackEl = document.querySelector('.track');
+        var attempts = 0;
+        var MAX_ATTEMPTS = 3;
+
+        try {
+            document.getElementById('version').textContent = 'v' + tizen.application.getCurrentApplication().appInfo.version;
+        } catch (e) { }
+
+        function setStatus(text, isError) {
+            statusEl.textContent = text;
+            statusEl.className = isError ? 'status error' : 'status';
+        }
+
+        function showError(message) {
+            trackEl.style.display = 'none';
+            setStatus(message + '  Press Back, then open TizenTube again.', true);
+        }
+
+        try {
+            tizen.tvinputdevice.registerKey("ColorF0Red");
+            tizen.tvinputdevice.registerKey("ColorF1Green");
+            tizen.tvinputdevice.registerKey("ColorF2Yellow");
+            tizen.tvinputdevice.registerKey("ColorF3Blue");
+        } catch (e) { }
+
+        var keys = [
             "MediaPlayPause",
             "MediaPlay",
             "MediaPause",
@@ -56,55 +177,74 @@
             "MediaTrackPrevious"
         ];
 
-        for (let i = 0; i < keys.length; i++) {
-            tizen.tvinputdevice.registerKey(keys[i]);
+        for (var i = 0; i < keys.length; i++) {
+            try {
+                tizen.tvinputdevice.registerKey(keys[i]);
+            } catch (e) { }
         }
 
-        const pkgId = tizen.application.getCurrentApplication().appInfo.packageId;
+        var pkgId = tizen.application.getCurrentApplication().appInfo.packageId;
+        var serviceId = pkgId + ".StandaloneService";
 
-        const serviceId = pkgId + ".StandaloneService";
+        function requestedArgs() {
+            try {
+                var data = tizen.application.getCurrentApplication().getRequestedAppControl().appControl.data;
+                return JSON.parse(data[0].value[0]).args;
+            } catch (e) {
+                return undefined;
+            }
+        }
+
+        function retry(args) {
+            attempts += 1;
+            if (attempts >= MAX_ATTEMPTS) {
+                showError("TizenTube couldn't start.");
+                return;
+            }
+            setStatus('Waiting for the service\u2026 (' + attempts + '/' + MAX_ATTEMPTS + ')');
+            setTimeout(function () {
+                boot(args);
+            }, 1500);
+        }
+
+        function boot(args) {
+            fetch('http://localhost:8100/tizentube/getState')
+                .then(function (r) {
+                    return r.json();
+                })
+                .then(function (res) {
+                    if (res.canConnectToDaemon && !res.isConnecting) {
+                        setStatus('Connecting to YouTube\u2026');
+                        fetch('http://localhost:8100/tizentube/debugger' + (args ? '?' + args : ''));
+                        tizen.application.getCurrentApplication().exit();
+                        return;
+                    }
+                    if (!res.canConnectToDaemon) {
+                        setStatus('Loading YouTube\u2026');
+                        location.href = 'http://localhost:8100/tv?additionalDataUrl=http%3A%2F%2Flocalhost%3A8100%2Fdial%2Fapps%2FYouTube' + (args ? '&' + args : '');
+                        return;
+                    }
+                    retry(args);
+                })
+                .catch(function () {
+                    retry(args);
+                });
+        }
 
         function useInjectorOrProxy() {
-            const data = tizen.application.getCurrentApplication().getRequestedAppControl().appControl.data;
-            let args;
-            try {
-                const parsedData = JSON.parse(data[0].value[0]);
-                args = parsedData.args;
-            } catch (e) {
-                // Do nothing.
-            }
-            fetch('http://localhost:8100/tizentube/getState')
-                .then(r => r.json())
-                .then(res => {
-                    if (res.canConnectToDaemon && !res.isConnecting) {
-                        fetch(`http://localhost:8100/tizentube/debugger${args ? `?${args}` : ''}`);
-                        tizen.application.getCurrentApplication().exit();
-                    } else if (!res.canConnectToDaemon) location.href = `http://localhost:8100/tv?additionalDataUrl=http%3A%2F%2Flocalhost%3A8100%2Fdial%2Fapps%2FYouTube${args ? `&${args}` : ''}`
-                }).catch(() => window.location.reload());
+            var args = requestedArgs();
+            setStatus('Connecting to the service\u2026');
+            boot(args);
         }
 
         tizen.application.launchAppControl(
             new tizen.ApplicationControl("http://tizen.org/appcontrol/operation/service"),
             serviceId,
-            function () {
-                useInjectorOrProxy();
-            },
+            useInjectorOrProxy,
             function (e) {
-                alert("Launch Service failed: " + e.message);
-            }
-        );
+                showError('The service did not start' + (e && e.message ? ': ' + e.message : '') + '.');
+            });
     </script>
-</head>
-
-<body
-    style="background-color: #0f0f0f; display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-    <h1
-        style="color: #FFFFFF; font-size: 80px; font-family: Roboto,Noto Sans CJK ZH-HK,Noto Sans Thai,Arial,Helvetica,sans-serif; margin: 0;">
-        TizenTube
-    </h1>
-    <div class="progress-container">
-        <div class="progress-bar"></div>
-    </div>
 </body>
 
 </html>

@@ -123,10 +123,11 @@ function execute_once_dom_loaded() {
 
   try {
     uiContainer.innerHTML = `
-<h1>TizenTube Theme Configuration</h1>
-<label for="__barColor">Navigation Bar Color: <input type="text" id="__barColor"/></label>
-<label for="__routeColor">Main Content Color: <input type="text" id="__routeColor"/></label>
-<div><small>Sponsor segments skipping - https://sponsor.ajay.app</small></div>
+<h1>Theme</h1>
+<p class="hint">Navigation bar and main content colours, as hex values. Press Back to close.</p>
+<label for="__barColor">Navigation bar colour<input type="text" id="__barColor" spellcheck="false" autocomplete="off" autocapitalize="off"/></label>
+<label for="__routeColor">Main content colour<input type="text" id="__routeColor" spellcheck="false" autocomplete="off" autocapitalize="off"/></label>
+<p class="hint">Sponsor segments are skipped by SponsorBlock (sponsor.ajay.app).</p>
 `;
     document.querySelector('body').appendChild(uiContainer);
 
