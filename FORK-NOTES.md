@@ -55,11 +55,36 @@ or the app has to be removed and reinstalled.
 - Certificate fingerprint (SHA-256 of the DER): `d2b5acb650b2425d6b3d3524fd26aa3ce78356526662c6ff39715716960b6ce4`
 - The certificate was made while setting up a different app, so its subject still says
   `O=FreeMyTV, CN=Free My TV`. Only cosmetic: it signs every TizenTube build on this TV.
-- It **expires on 2027-01-01**. Before then, make a fresh certificate and plan one reinstall
-  (uninstall + install), because the TV will not take an update signed with another key.
+- It **expires on 2027-01-01**. Current installs keep working after that (the TV checks the
+  signature when installing, not when launching), but updates need the replacement below.
 
-**Back both files up.** If the certificate is lost, updates cannot be installed in place; the app
+**Back these files up.** If the certificate is lost, updates cannot be installed in place; the app
 has to be uninstalled and reinstalled, which also loses the YouTube login.
+
+## Certificate renewal (prepared, not yet active)
+
+Two replacements are staged in `~/.tizentube/`. Both use the password in `password-2027`.
+
+| File | Made with | Valid until | Notes |
+|---|---|---|---|
+| `author-2027.p12` | `tizenjs create-tizen-cert` | 2027-10-28 | preferred: a full year |
+| `author-2027-cli.p12` | `tizen certificate` | 2027-01-01 | same shape as the cert in use (CA:FALSE) |
+
+The Tizen CLI always writes an expiry of 2027-01-01, so it cannot extend past that; `tizenjs` issues
+a year, but marks the author certificate CA:TRUE. Both chain to `Tizen Developers CA`, and both were
+tested to produce a complete signature (`author-signature.xml` + `signature1.xml`).
+
+To switch, at the first update after 2027-01-01:
+
+1. Build with `--author "$HOME/.tizentube/author-2027.p12" --authorPwd "$(cat ~/.tizentube/password-2027)"`.
+2. Remove TizenTube on the TV (Apps → TizenTube → Delete). Its data goes too.
+3. `python3 tools/install.py <TV IP>`.
+4. Sign in to YouTube once. Updates after this keep working in place with the new certificate.
+
+Before relying on it, it is worth proving the new certificate is accepted: build a throwaway copy
+with a different app id (so no uninstall is needed), install it, and delete it. If the TV rejects it,
+use `author-2027-cli.p12` before its own expiry, or make a new certificate with the Tizen CLI and
+switch then.
 
 ## What this fork changes
 
