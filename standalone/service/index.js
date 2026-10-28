@@ -66,7 +66,7 @@ app.get('/tizentube/debugger', (req, res) => {
 
     // Preferred: attach to the running app, so it switches to YouTube in
     // place instead of dropping out to the TV home screen and relaunching.
-    injector.tryAttachDebugger(6000).then(found => {
+    injector.tryAttachDebugger(12000).then(found => {
         if (found) {
             try { res.json({ exit: false }); } catch (e) {}
             injector.connectToDebugger(found.ip, found.port, args);

@@ -58,7 +58,7 @@ function canConnectToDaemon() {
  * attaches to a live process this skips the drop-to-home entirely.
  * Resolves {port, ip} when a debug port answers, else null. Never throws.
  */
-function tryAttachDebugger(timeoutMs) {
+function tryAttachOnce(timeoutMs) {
     return canConnectToDaemon().then(res => {
         if (!res.canConnectToDaemon) return null;
         return new Promise(resolve => {
@@ -100,6 +100,25 @@ function tryAttachDebugger(timeoutMs) {
             } catch (e) { finish(null); }
         });
     }).catch(() => null);
+}
+
+/**
+ * Keeps trying for a while: on a cold boot the TV's sdbd is still coming up
+ * when the first launch asks, and a single early "no" used to be enough to
+ * drop out to the home screen.
+ */
+function tryAttachDebugger(totalMs) {
+    const end = Date.now() + (totalMs || 14000);
+
+    function attempt() {
+        return tryAttachOnce(4000).then(found => {
+            if (found) return found;
+            if (Date.now() >= end) return null;
+            return new Promise(resolve => setTimeout(resolve, 1200)).then(attempt);
+        });
+    }
+
+    return attempt().catch(() => null);
 }
 
 function startDebugger(args) {
