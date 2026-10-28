@@ -33,26 +33,33 @@ Always install **over** the existing app; never uninstall first.
 cd standalone
 node service/build-service.js remove-cobalt-flags
 tizenjs build . -t wgt -o release/TizenTubeOld.wgt \
-  --author "$HOME/tizen-studio-data/keystore/author/author.p12" \
-  --authorPwd "$(cat ~/.freemytv-tizen-pass)" \
+  --author "$HOME/.tizentube/author.p12" \
+  --authorPwd "$(cat ~/.tizentube/password)" \
   -p public --ignore "node_modules,/.*wgt$/,/userwidget/,/release/"
 git checkout -- config.xml
+
+cd ..
+python3 tools/install.py 192.168.1.228
 ```
 
-Then push the WGT with `0 vd_appinstall xvvl3S1TT1 <remote path>`.
-
-Uninstalling wipes the app data, which means the YouTube sign-in has to be done again. Overwriting
-keeps cookies and settings. The TV refuses an update signed with a different certificate, so keep the
-author certificate below or the app has to be removed and reinstalled.
+`tools/install.py` pushes the package and runs `0 vd_appinstall`, which updates in place and keeps
+the app's data. Uninstalling wipes that data, which means the YouTube sign-in has to be done again.
+The TV refuses an update signed with a different certificate, so keep the author certificate below
+or the app has to be removed and reinstalled.
 
 ## Signing
 
-- Author certificate: `~/tizen-studio-data/keystore/author/author.p12`
-- Password: `~/.freemytv-tizen-pass`
+- Author certificate: `~/.tizentube/author.p12`
+- Password: `~/.tizentube/password`
 - Distributor: `public` (passed with `-p public`)
+- Certificate fingerprint (SHA-256 of the DER): `d2b5acb650b2425d6b3d3524fd26aa3ce78356526662c6ff39715716960b6ce4`
+- The certificate was made while setting up a different app, so its subject still says
+  `O=FreeMyTV, CN=Free My TV`. Only cosmetic: it signs every TizenTube build on this TV.
+- It **expires on 2027-01-01**. Before then, make a fresh certificate and plan one reinstall
+  (uninstall + install), because the TV will not take an update signed with another key.
 
-**Back this up.** If the certificate is lost, updates cannot be installed in place; the app has to be
-uninstalled and reinstalled, which also loses the YouTube login.
+**Back both files up.** If the certificate is lost, updates cannot be installed in place; the app
+has to be uninstalled and reinstalled, which also loses the YouTube login.
 
 ## What this fork changes
 
