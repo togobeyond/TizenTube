@@ -33,8 +33,8 @@ Always install **over** the existing app; never uninstall first.
 cd standalone
 node service/build-service.js remove-cobalt-flags
 tizenjs build . -t wgt -o release/TizenTubeOld.wgt \
-  --author "$HOME/.tizentube/author.p12" \
-  --authorPwd "$(cat ~/.tizentube/password)" \
+  --author "$HOME/tizen-studio-data/keystore/author/author.p12" \
+  --authorPwd "$(cat ~/tizen-studio-data/keystore/author/password)" \
   -p public --ignore "node_modules,/.*wgt$/,/userwidget/,/release/"
 git checkout -- config.xml
 
@@ -49,8 +49,8 @@ or the app has to be removed and reinstalled.
 
 ## Signing
 
-- Author certificate: `~/.tizentube/author.p12`
-- Password: `~/.tizentube/password`
+- Author certificate: `~/tizen-studio-data/keystore/author/author.p12`
+- Password: `~/tizen-studio-data/keystore/author/password`
 - Distributor: `public` (passed with `-p public`)
 - Certificate fingerprint (SHA-256 of the DER): `d2b5acb650b2425d6b3d3524fd26aa3ce78356526662c6ff39715716960b6ce4`
 - The certificate was made while setting up a different app, so its subject still says
@@ -58,12 +58,17 @@ or the app has to be removed and reinstalled.
 - It **expires on 2027-01-01**. Current installs keep working after that (the TV checks the
   signature when installing, not when launching), but updates need the replacement below.
 
+The certificate lives in the Tizen CLI's default author slot, so the same file serves TizenTube
+(`tizenjs --author`) and any Tizen CLI build. The CLI's active profile is a different project
+(`jellyfin-tv`, pointing at `~/.jellyfin-tizen/certs/`), so the two do not interfere. This folder is
+inside the weekly backup.
+
 **Back these files up.** If the certificate is lost, updates cannot be installed in place; the app
 has to be uninstalled and reinstalled, which also loses the YouTube login.
 
 ## Certificate renewal (prepared, not yet active)
 
-Two replacements are staged in `~/.tizentube/`. Both use the password in `password-2027`.
+Two replacements are staged in `~/tizen-studio-data/keystore/author/`. Both use the password in `password-2027`.
 
 | File | Made with | Valid until | Notes |
 |---|---|---|---|
@@ -76,7 +81,7 @@ tested to produce a complete signature (`author-signature.xml` + `signature1.xml
 
 To switch, at the first update after 2027-01-01:
 
-1. Build with `--author "$HOME/.tizentube/author-2027.p12" --authorPwd "$(cat ~/.tizentube/password-2027)"`.
+1. Build with `--author "$HOME/tizen-studio-data/keystore/author/author-2027.p12" --authorPwd "$(cat ~/tizen-studio-data/keystore/author/password-2027)"`.
 2. Remove TizenTube on the TV (Apps → TizenTube → Delete). Its data goes too.
 3. `python3 tools/install.py <TV IP>`.
 4. Sign in to YouTube once. Updates after this keep working in place with the new certificate.
