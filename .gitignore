@@ -7,3 +7,4 @@ standalone/service/userscript.js
 standalone/release/
 package-lock.json
 standalone/config.xml.bak
+__pycache__/
