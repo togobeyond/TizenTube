@@ -9,6 +9,19 @@ const userscript = require('../userscript.js');
 var isConnecting = false;
 const isTizen3 = tizen.systeminfo.getCapability('http://tizen.org/feature/platform.version').startsWith('3.0');
 
+// When a Player page was navigated to recently, a booting app is the relaunch
+// from `0 debug`, not a fresh user launch: it must wait, never exit again.
+var lastNavigateAt = 0;
+var NAVIGATE_COOLDOWN_MS = 25000;
+
+function markNavigated() {
+    lastNavigateAt = Date.now();
+}
+
+function inNavigateCooldown() {
+    return Date.now() - lastNavigateAt < NAVIGATE_COOLDOWN_MS;
+}
+
 function connectToDebugger(host, port, args) {
     fetch(`http://${host}:${port}`).then(_ => {
         CDP({ host, port, local: true }, client => {
@@ -20,6 +33,7 @@ function connectToDebugger(host, port, args) {
                 client.Runtime.evaluate({ expression: userscript.code, contextId: m.context.id });
             });
 
+            markNavigated();
             client.Page.navigate({ url: `https://youtube.com/tv?additionalDataUrl=http%3A%2F%2Flocalhost%3A8085%2Fdial%2Fapps%2FYouTube${args ? `&${args}` : ''}` });
 
             client.Page.setBypassCSP({ enabled: true });
@@ -32,10 +46,60 @@ function connectToDebugger(host, port, args) {
 function canConnectToDaemon() {
     return fetch('http://127.0.0.1:8001/api/v2/').then(res => res.json())
         .then(json => {
-            return { canConnectToDaemon: (json.device.developerIP === '127.0.0.1' || json.device.developerIP === '1.0.0.127') && json.device.developerMode === '1', ip: json.device.ip, isConnecting }
+            return { canConnectToDaemon: (json.device.developerIP === '127.0.0.1' || json.device.developerIP === '1.0.0.127') && json.device.developerMode === '1', ip: json.device.ip, isConnecting, cooldown: inNavigateCooldown() }
         }).catch(e => {
             return canConnectToDaemon();
         });
+}
+
+/**
+ * Attaches the debugger to the RUNNING app, without exiting it first. The
+ * `0 debug` dance used to require the app to be gone; on TVs whose sdbd
+ * attaches to a live process this skips the drop-to-home entirely.
+ * Resolves {port, ip} when a debug port answers, else null. Never throws.
+ */
+function tryAttachDebugger(timeoutMs) {
+    return canConnectToDaemon().then(res => {
+        if (!res.canConnectToDaemon) return null;
+        return new Promise(resolve => {
+            let done = false;
+            let buf = '';
+            let client = null;
+            const timer = setTimeout(() => finish(null), timeoutMs || 6000);
+            function finish(result) {
+                if (done) return;
+                done = true;
+                isConnecting = false;
+                clearTimeout(timer);
+                try { if (client) client._stream.end(); } catch (e) {}
+                resolve(result);
+            }
+            try {
+                client = adbhost.createConnection({ host: '127.0.0.1', port: 26101 });
+            } catch (e) { finish(null); return; }
+            try {
+                client._stream.on('connect', () => {
+                    isConnecting = true;
+                    let shellCmd;
+                    try {
+                        const packageId = tizen.application.getAppInfo().packageId;
+                        shellCmd = client.createStream(`shell:0 debug ${packageId}.TizenTubeStandalone${isTizen3 ? ' 0' : ''}`);
+                    } catch (e) { finish(null); return; }
+                    shellCmd.on('data', (data) => {
+                        buf += data.toString();
+                        if (buf.includes('debug')) {
+                            const port = Number(buf.substr(buf.indexOf(':') + 1, 6).replace(' ', ''));
+                            if (Number.isFinite(port) && port > 0 && port < 65536) {
+                                finish({ port: port, ip: res.ip });
+                            }
+                        }
+                    });
+                    shellCmd.on('error', () => finish(null));
+                });
+                client._stream.on('error', () => finish(null));
+            } catch (e) { finish(null); }
+        });
+    }).catch(() => null);
 }
 
 function startDebugger(args) {
@@ -63,5 +127,7 @@ function startDebugger(args) {
 
 module.exports = {
     startDebugger,
-    canConnectToDaemon
+    canConnectToDaemon,
+    tryAttachDebugger,
+    connectToDebugger
 };

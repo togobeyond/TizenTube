@@ -231,16 +231,36 @@
             }, RETRY_MS);
         }
 
+        // The service navigates us to YouTube in place after attaching. If we are
+        // still here much later the attach silently failed, so fall back to
+        // the classic exit-and-relaunch flow.
+        function waitForNavigate() {
+            setStatus('Loading YouTube\u2026');
+            setTimeout(function () {
+                fetch('http://localhost:8100/tizentube/debugger?forceExit=1')
+                    .then(function (r) { return r.json(); })
+                    .then(function () { exitApp(); })
+                    .catch(function () { exitApp(); });
+            }, 30000);
+        }
+
         function boot(args) {
             fetch('http://localhost:8100/tizentube/getState')
                 .then(function (r) {
                     return r.json();
                 })
                 .then(function (res) {
-                    if (res.canConnectToDaemon && !res.isConnecting) {
+                    if (res.canConnectToDaemon && !res.isConnecting && !res.cooldown) {
                         setStatus('Connecting to YouTube\u2026');
-                        fetch('http://localhost:8100/tizentube/debugger' + (args ? '?' + args : ''));
-                        tizen.application.getCurrentApplication().exit();
+                        fetch('http://localhost:8100/tizentube/debugger' + (args ? '?' + args : ''))
+                            .then(function (r) { return r.json(); })
+                            .then(function (j) {
+                                if (j && j.exit === false) waitForNavigate();
+                                else exitApp();
+                            })
+                            .catch(function () {
+                                retry(args);
+                            });
                         return;
                     }
                     if (!res.canConnectToDaemon) {

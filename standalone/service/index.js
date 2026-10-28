@@ -39,17 +39,45 @@ app.get('/tizentube/getState', (req, res) => {
 });
 
 app.get('/tizentube/debugger', (req, res) => {
-    const args = req.originalUrl.split('?')[1] || '';
-    const interval = setInterval(() => {
-        tizen.application.getAppsContext((appsContext) => {
-            const packageId = tizen.application.getAppInfo().packageId;
-            const app = appsContext.find(app => app.appId === `${packageId}.TizenTubeStandalone`);
-            if (!app) {
-                injector.startDebugger(args);
-                clearInterval(interval)
-            }
-        });
-    }, 50);
+    const rawQs = req.originalUrl.split('?')[1] || '';
+    const forceExit = /(^|&)forceExit=1(&|$)/.test(rawQs);
+    const args = rawQs.split('&').filter(p => !/^forceExit=/.test(p)).join('&');
+
+    // The classic flow: wait until the app is gone, then relaunch it in
+    // debug mode. Kept as the fallback when attaching to the live app fails.
+    function waitForExitThenDebug() {
+        const interval = setInterval(() => {
+            tizen.application.getAppsContext((appsContext) => {
+                const packageId = tizen.application.getAppInfo().packageId;
+                const app = appsContext.find(app => app.appId === `${packageId}.TizenTubeStandalone`);
+                if (!app) {
+                    injector.startDebugger(args);
+                    clearInterval(interval)
+                }
+            });
+        }, 50);
+    }
+
+    if (forceExit) {
+        try { res.json({ exit: true }); } catch (e) {}
+        waitForExitThenDebug();
+        return;
+    }
+
+    // Preferred: attach to the running app, so it switches to YouTube in
+    // place instead of dropping out to the TV home screen and relaunching.
+    injector.tryAttachDebugger(6000).then(found => {
+        if (found) {
+            try { res.json({ exit: false }); } catch (e) {}
+            injector.connectToDebugger(found.ip, found.port, args);
+        } else {
+            try { res.json({ exit: true }); } catch (e) {}
+            waitForExitThenDebug();
+        }
+    }).catch(() => {
+        try { res.json({ exit: true }); } catch (e) {}
+        waitForExitThenDebug();
+    });
 });
 
 app.all('*', (req, res) => {
